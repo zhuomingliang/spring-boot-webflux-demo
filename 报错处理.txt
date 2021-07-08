@@ -1,0 +1,7 @@
+1. java.base does not "opens java.lang" to unnamed module
+
+
+--add-opens=java.base/java.lang=ALL-UNNAMED opens the java.lang package of the java.base module to the ALL-UNNAMED module, which is everything on the classpath. But you have nothing on the classpath. If all your code is in the AAT module (where your class with the main method is), it's:
+
+--add-opens=java.base/java.lang=AAT
+

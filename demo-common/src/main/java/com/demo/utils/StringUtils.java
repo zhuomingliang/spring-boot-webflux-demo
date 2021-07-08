@@ -3,6 +3,7 @@ package com.demo.utils;
 import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import io.netty.handler.codec.http.HttpRequest;
 import nl.basjes.parse.useragent.UserAgent;
 import nl.basjes.parse.useragent.UserAgentAnalyzer;
 import org.lionsoul.ip2region.DataBlock;
@@ -11,8 +12,6 @@ import org.lionsoul.ip2region.DbSearcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ClassPathResource;
-
-import io.netty.handler.codec.http.HttpRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 

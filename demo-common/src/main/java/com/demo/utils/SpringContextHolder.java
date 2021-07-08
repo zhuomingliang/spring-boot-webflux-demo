@@ -21,6 +21,7 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.env.Environment;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,7 +44,7 @@ public class SpringContextHolder implements ApplicationContextAware, DisposableB
      */
     public synchronized static void addCallBacks(CallBack callBack) {
         if (addCallback) {
-            SpringContextHolder.CALL_BACKS.add(callBack);
+            CALL_BACKS.add(callBack);
         } else {
             log.warn("CallBack：{} 已无法添加！立即执行", callBack.getCallBackName());
             callBack.executor();

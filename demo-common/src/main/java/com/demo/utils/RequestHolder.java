@@ -13,29 +13,18 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package com.demo.exception;
+package com.demo.utils;
 
-import lombok.Getter;
-import org.springframework.http.HttpStatus;
-
-import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.web.server.ServerWebExchange;
 
 /**
+ * 获取 HttpServletRequest
  * @author Zheng Jie
- * @date 2018-11-23
- * 统一异常处理
+ * @date 2018-11-24
  */
-@Getter
-public class BadRequestException extends RuntimeException{
-
-    private Integer status = BAD_REQUEST.value();
-
-    public BadRequestException(String msg){
-        super(msg);
-    }
-
-    public BadRequestException(HttpStatus status,String msg){
-        super(msg);
-        this.status = status.value();
+public class RequestHolder {
+    public static ServerHttpRequest getRequest(ServerWebExchange serverWebExchange) {
+        return serverWebExchange.getRequest();
     }
 }

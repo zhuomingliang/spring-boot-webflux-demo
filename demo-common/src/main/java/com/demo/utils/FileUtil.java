@@ -15,32 +15,30 @@
  */
 package com.demo.utils;
 
-import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.poi.excel.BigExcelWriter;
 import cn.hutool.poi.excel.ExcelUtil;
 import com.demo.exception.BadRequestException;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufOutputStream;
 import io.netty.buffer.UnpooledByteBufAllocator;
-import io.netty.channel.*;
-import io.netty.handler.codec.http.*;
-import org.apache.poi.util.IOUtils;
 import org.apache.poi.xssf.streaming.SXSSFSheet;
+import com.alibaba.fastjson.JSON;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DefaultDataBuffer;
+import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.core.io.buffer.NettyDataBufferFactory;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ZeroCopyHttpOutputMessage;
-import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -48,7 +46,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
-import static io.netty.buffer.Unpooled.buffer;
 
 /**
  * File工具类，扩展 hutool 工具包
@@ -222,7 +219,9 @@ public class FileUtil extends cn.hutool.core.io.FileUtil {
     /**
      * 导出excel
      */
-    public static void downloadExcel(ChannelHandlerContext ctx, List<Map<String, Object>> list) throws IOException {
+    public static Mono<Void> downloadExcel(ServerHttpResponse response, String filename,  List<Map<String, Object>> list) throws IOException {
+        HttpHeaders headers = response.getHeaders();
+
         BigExcelWriter writer = ExcelUtil.getBigWriter("");
         // 一次性写出内容，使用默认样式，强制输出标题
         writer.write(list, true);
@@ -231,17 +230,18 @@ public class FileUtil extends cn.hutool.core.io.FileUtil {
         sheet.trackAllColumnsForAutoSizing();
         //列宽自适应
         writer.autoSizeColumnAll();
-        FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-        response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8");
+        headers.setContentType(MediaType.valueOf("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8"));
         //test.xls是弹出下载对话框的文件名，不能为中文，中文请自行编码
-        response.headers().set(HttpHeaderNames.CONTENT_DISPOSITION, "attachment;filename=file.xlsx");
-        // 终止后删除临时文件
-        ByteBuf bytebuf = buffer();
-        ByteBufOutputStream out = new ByteBufOutputStream(bytebuf);
-        writer.flush(out, true);
+        headers.setContentDisposition(ContentDisposition.parse("attachment;filename=" + new String(filename.getBytes(StandardCharsets.UTF_8), StandardCharsets.ISO_8859_1) + ".xlsx"));
+        DefaultDataBuffer dataBuffer = new DefaultDataBufferFactory().allocateBuffer();
+        OutputStream outputStream = dataBuffer.asOutputStream();
+        writer.flush(outputStream, true);
         writer.close();
-        ctx.write(response);
-        ctx.writeAndFlush(bytebuf).addListener(ChannelFutureListener.CLOSE);
+        Flux<DataBuffer> data = Flux.create(emitter -> {
+            emitter.next(dataBuffer);
+            emitter.complete();
+        });
+        return response.writeWith(data);
     }
 
     public static String getFileType(String type) {
@@ -262,7 +262,7 @@ public class FileUtil extends cn.hutool.core.io.FileUtil {
         }
     }
 
-    public static void checkSize(long maxSize, long size) {
+    public static void checkSize(long size, long maxSize) {
         // 1M
         int len = 1024 * 1024;
         if (size > (maxSize * len)) {
@@ -333,42 +333,40 @@ public class FileUtil extends cn.hutool.core.io.FileUtil {
 
     /**
      * 下载文件
-     *
-     * @param request  /
      * @param response /
      * @param file     /
      */
-    public static Mono<Void> downloadFile(ServerHttpRequest request, ServerHttpResponse response, File file) {
-        HttpHeaders headers = request.getHeaders();
-        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-
+    public static Mono<Void> downloadFile(ServerHttpResponse response, File file) {
         try {
-            ZeroCopyHttpOutputMessage zeroCopyResponse = (ZeroCopyHttpOutputMessage) response;
-
-            headers.set(HttpHeaders.CONTENT_DISPOSITION,
-                    "attachment; filename=" + new String(file.getName().getBytes("UTF-8"), "iso-8859-1"));//输出文件名乱码问题处理
-
-            return zeroCopyResponse.writeWith(file, 0, file.length());
+            if (file.canRead()) {
+                long length = file.length();
+                HttpHeaders headers = response.getHeaders();
+                headers.set(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=" + new String(file.getName().getBytes(StandardCharsets.UTF_8),
+                                StandardCharsets.ISO_8859_1));//输出文件名乱码问题处理
+                headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+                headers.setContentLength(length);
+                ZeroCopyHttpOutputMessage zeroCopyResponse = (ZeroCopyHttpOutputMessage) response;
+                return zeroCopyResponse.writeWith(file, 0, length);
+            }
         } catch (Exception e) {
             log.error(e.getMessage(), e);
         }
-
-        return writeHtml(response,"<html><head><meta charset=\"utf-8\"/></head><body>文件不存在！</body></html>");
+        return writeHtml(response, "<html><head><meta charset=\"utf-8\"/></head><body>文件不存在！</body></html>");
     }
 
-    // https://blog.csdn.net/whq12789/article/details/90085649
-    public static Mono<Void> writeHtml(ServerHttpResponse response, String html){
-        return response.writeWith(Flux.create(sink -> {
+    // 参考：https://blog.csdn.net/whq12789/article/details/90085649
+    public static Mono<Void> writeObjectAsJson(ServerHttpResponse response, Object object) {
+        NettyDataBufferFactory nettyDataBufferFactory = new NettyDataBufferFactory(new UnpooledByteBufAllocator(false));
+        DataBuffer dataBuffer= nettyDataBufferFactory.wrap(JSON.toJSONStringWithDateFormat(object, JSON.DEFFAULT_DATE_FORMAT).getBytes(StandardCharsets.UTF_8));
+        return response.writeWith(Mono.just(dataBuffer));
+    }
 
-            NettyDataBufferFactory nettyDataBufferFactory = new NettyDataBufferFactory(new UnpooledByteBufAllocator(false));
-            try {
-                DataBuffer dataBuffer= nettyDataBufferFactory.wrap(html.getBytes("utf8"));
-                sink.next(dataBuffer);
-            } catch (UnsupportedEncodingException e) {
-                e.printStackTrace();
-            }
-            sink.complete();
-        }));
+    // 参考：https://blog.csdn.net/whq12789/article/details/90085649
+    public static Mono<Void> writeHtml(ServerHttpResponse response, String html){
+        NettyDataBufferFactory nettyDataBufferFactory = new NettyDataBufferFactory(new UnpooledByteBufAllocator(false));
+        DataBuffer dataBuffer= nettyDataBufferFactory.wrap(html.getBytes(StandardCharsets.UTF_8));
+        return response.writeWith(Mono.just(dataBuffer));
     }
 
     public static String getMd5(File file) {

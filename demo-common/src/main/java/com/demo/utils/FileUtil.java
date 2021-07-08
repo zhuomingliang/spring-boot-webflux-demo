@@ -359,6 +359,8 @@ public class FileUtil extends cn.hutool.core.io.FileUtil {
     public static Mono<Void> writeObjectAsJson(ServerHttpResponse response, Object object) {
         NettyDataBufferFactory nettyDataBufferFactory = new NettyDataBufferFactory(new UnpooledByteBufAllocator(false));
         DataBuffer dataBuffer= nettyDataBufferFactory.wrap(JSON.toJSONStringWithDateFormat(object, JSON.DEFFAULT_DATE_FORMAT).getBytes(StandardCharsets.UTF_8));
+        HttpHeaders headers = response.getHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
         return response.writeWith(Mono.just(dataBuffer));
     }
 
@@ -366,6 +368,8 @@ public class FileUtil extends cn.hutool.core.io.FileUtil {
     public static Mono<Void> writeHtml(ServerHttpResponse response, String html){
         NettyDataBufferFactory nettyDataBufferFactory = new NettyDataBufferFactory(new UnpooledByteBufAllocator(false));
         DataBuffer dataBuffer= nettyDataBufferFactory.wrap(html.getBytes(StandardCharsets.UTF_8));
+        HttpHeaders headers = response.getHeaders();
+        headers.setContentType(MediaType.TEXT_HTML);
         return response.writeWith(Mono.just(dataBuffer));
     }
 

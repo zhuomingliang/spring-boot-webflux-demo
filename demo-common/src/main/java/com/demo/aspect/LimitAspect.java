@@ -69,25 +69,31 @@ public class LimitAspect {
         ServerHttpRequest request = null;
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         Method signatureMethod = signature.getMethod();
-        Object[] args = joinPoint.getArgs();
-
-        for (Object arg : args) {
-            if (arg instanceof ServerHttpRequest) {
-                request = (ServerHttpRequest) arg;
-                break;
-            }
-
-            if (arg instanceof ServerWebExchange) {
-                request = ((ServerWebExchange)arg).getRequest();
-                break;
-            }
-        }
 
         Limit limit = signatureMethod.getAnnotation(Limit.class);
         LimitType limitType = limit.limitType();
         String key = limit.key();
         if (StringUtils.isEmpty(key)) {
             if (limitType == LimitType.IP) {
+                Object[] args = joinPoint.getArgs();
+
+                for (Object arg : args) {
+                    if (arg instanceof ServerHttpRequest) {
+                        request = (ServerHttpRequest) arg;
+                        break;
+                    }
+
+                    if (arg instanceof ServerWebExchange) {
+                        request = ((ServerWebExchange)arg).getRequest();
+                        break;
+                    }
+                }
+
+                if (request == null) {
+                    logger.warn("ServerHttpRequest 参数为空，无法限流！");
+                    return;
+                }
+
                 key = StringUtils.getIp(request);
             } else {
                 key = signatureMethod.getName();

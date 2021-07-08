@@ -23,11 +23,17 @@ import org.aspectj.lang.annotation.*;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.http.server.reactive.ServerHttpRequest;
+import org.springframework.scripting.support.ResourceScriptSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 
+import javax.annotation.Resource;
 import java.lang.reflect.Method;
+import java.util.List;
 
 /**
  * @author /
@@ -42,6 +48,17 @@ public class LimitAspect {
 //    public LimitAspect(RedisTemplate<Object,Object> redisTemplate) {
 //        this.redisTemplate = redisTemplate;
 //    }
+
+//    @Resource
+//    private StringRedisTemplate stringRedisTemplate;
+//
+//    public <T> T runLua(String fileClasspath, Class<T> returnType, List<String> keys, Object ... values){
+//        DefaultRedisScript<T> redisScript =new DefaultRedisScript<>();
+//        redisScript.setScriptSource(new ResourceScriptSource(new ClassPathResource(fileClasspath)));
+//        redisScript.setResultType(returnType);
+//        return stringRedisTemplate.execute(redisScript, keys, values);
+//    }
+
 
     @Pointcut("@annotation(com.demo.annotation.Limit)")
     public void pointcut() {

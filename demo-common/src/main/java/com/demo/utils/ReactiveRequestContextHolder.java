@@ -23,7 +23,7 @@ import org.springframework.web.server.ServerWebExchange;
  * @author Zheng Jie
  * @date 2018-11-24
  */
-public class RequestHolder {
+public class ReactiveRequestContextHolder  {
     public static ServerHttpRequest getRequest(ServerWebExchange serverWebExchange) {
         return serverWebExchange.getRequest();
     }

@@ -10,7 +10,6 @@ import com.demo.aspect.LimitType;
 import com.demo.utils.FileUtil;
 import com.demo.utils.StringUtils;
 import lombok.Data;
-import lombok.extern.java.Log;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.springframework.core.io.buffer.DefaultDataBuffer;
@@ -21,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import reactor.core.publisher.Mono;
 
@@ -32,10 +32,16 @@ import java.util.List;
 public class IndexController {
     @GetMapping(value = "/")
     @Limit(period = 60, count = 10, name = "testLimit", prefix = "limit", limitType= LimitType.IP)
-    public Mono<Void> IndexAction(ServerHttpRequest request, ServerHttpResponse response) {
+    public Mono<Void> indexAction(ServerHttpRequest request, ServerHttpResponse response) {
         log.info("xxxx！！！");
         log.debug("dddddd");
         return FileUtil.writeHtml(response, StringUtils.getIp(request));
+    }
+
+    @GetMapping("/template")
+    public Mono<String> templateAction(final Model model) {
+        model.addAttribute("name", "world");
+        return Mono.just("template");
     }
 
     @GetMapping("/download")
